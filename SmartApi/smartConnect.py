@@ -1,6 +1,7 @@
 from six.moves.urllib.parse import urljoin
 import json
 import logging
+from typing import Any, Dict, List, Literal, Tuple, Union
 import SmartApi.smartExceptions as ex
 import requests
 from requests import get
@@ -340,6 +341,20 @@ class SmartConnect(object):
         return None
 
     def placeOrderFullResponse(self,orderparams):
+        """ orderparams{    # You can pick this template directly.
+                "variety": NORMAL or STOPLOSS or AMO or ROBO
+                "transactiontype": BUY or SELL,
+                "ordertype": MARKET or LIMIT or STOPLOSS_LIMIT or STOPLOSS_MARKET,
+                "producttype": DELIVERY or CARRYFORWARD or MARGIN or INTRADAY or BO,
+                "duration": DAY or IOC,
+                "exchange": BSE or NSE or NFO or MCX or BFO or CDS,
+                "tradingsymbol": tradingsymbol,
+                "symboltoken": symboltoken,
+                "price": price,
+                "squareoff": "0",
+                "stoploss": "0",
+                "quantity": quantity
+        """
         params=orderparams
         for k in list(params.keys()):
             if params[k] is None :
@@ -355,9 +370,103 @@ class SmartConnect(object):
             logger.error(f"API request failed: {response}")
         return None
     
-    def modifyOrder(self,orderparams):
-        params = orderparams
+    def placeOrderOnNSE(self, tradingsymbol: str = "", symboltoken: int|str = None, \
+        transactiontype: Literal["BUY", "SELL"] = "BUY", ordertype:Literal["LIMIT", "MARKETR", "STOPLOSS_LIMIT", "STOPLOSS_MARKET"]="MARKET", \
+        producttype: Literal["DELIVERY", "CARRYWARD", "MARGIN", "INTRADAY", "BO"] = "DELIVERY", duration: Literal["DAY", "IOC"]="DAY", price: int=0.05, quantity:int=1):
+        """ tradingsymbol is as per list provided by angelone Ex: SBIN-EQ
+            symboltoken is as per list provided by angelone Ex: 3045 for SBIN-EQ
+            transactiontype: Either BUY or SELL
+            ordertype is whether LIMIT or MARKET
+            producttype is whether INTRADAY or DELIVERY
+            
+        """
+        if tradingsymbol == "" or symboltoken == None:
+            logger.error(f"Invalid trading symbol or symboltoken: {tradingsymbol}, {symboltoken}")
+            return None
+        
+        orderparams = {
+            "variety": "NORMAL",
+            "tradingsymbol": tradingsymbol,
+            "transactiontype": transactiontype,
+            "symboltoken": symboltoken,
+            "exchange": "NSE",
+            "ordertype": ordertype,
+            "producttype": producttype,
+            "duration": duration,
+            "price": price,
+            "squareoff": "0",
+            "stoploss": "0",
+            "quantity": quantity
+        }
+        response= self._postRequest("api.order.placefullresponse", orderparams)
+        if response is not None and response.get('status', False):
+            if 'data' in response and response['data'] is not None and 'orderid' in response['data']:
+                orderResponse = response
+                return orderResponse
+            else:
+                logger.error(f"Invalid response format: {response}")
+        else:
+            logger.error(f"API request failed: {response}")
+        return None
 
+    def placeOrderOnBSE(self, tradingsymbol: str = "", symboltoken: int|str = None, \
+        transactiontype: Literal["BUY", "SELL"] = "BUY", ordertype:Literal["LIMIT", "MARKETR", "STOPLOSS_LIMIT", "STOPLOSS_MARKET"]="MARKET", \
+        producttype: Literal["DELIVERY", "CARRYWARD", "MARGIN", "INTRADAY", "BO"] = "DELIVERY", duration: Literal["DAY", "IOC"]="DAY", price: int=0.05, quantity:int=1):
+        """ tradingsymbol is as per list provided by angelone Ex: SBIN-EQ
+            symboltoken is as per list provided by angelone Ex: 3045 for SBIN-EQ
+            transactiontype: Either BUY or SELL
+            ordertype is whether LIMIT or MARKET
+            producttype is whether INTRADAY or DELIVERY
+            
+        """
+        if tradingsymbol == "" or symboltoken == None:
+            logger.error(f"Invalid trading symbol or symboltoken: {tradingsymbol}, {symboltoken}")
+            return None
+        
+        orderparams = {
+            "variety": "NORMAL",
+            "tradingsymbol": tradingsymbol,
+            "transactiontype": transactiontype,
+            "symboltoken": symboltoken,
+            "exchange": "BSE",
+            "ordertype": ordertype,
+            "producttype": producttype,
+            "duration": duration,
+            "price": price,
+            "squareoff": "0",
+            "stoploss": "0",
+            "quantity": quantity
+        }
+        response= self._postRequest("api.order.placefullresponse", orderparams)
+        if response is not None and response.get('status', False):
+            if 'data' in response and response['data'] is not None and 'orderid' in response['data']:
+                orderResponse = response
+                return orderResponse
+            else:
+                logger.error(f"Invalid response format: {response}")
+        else:
+            logger.error(f"API request failed: {response}")
+        return None
+    
+    def modifyOrder(self, orderparams = None, tradingsymbol="", symboltoken=None, variety="NORMAL", orderid = None, producttype="DELIVERY", duration="DAY", price=0.05, quantity=1, exchange="NSE"):
+        """modifyOrder can work with 'orderparams' as standalone input or
+           can leave it to none and use remaining parameters to modify the order details """
+        if orderparams == None:
+            params = {
+                "variety": variety,
+                "orderid": orderid,
+                "ordertype":"LIMIT",
+                "producttype":producttype,
+                "duration":duration,
+                "price":price,
+                "quantity":quantity,
+                "tradingsymbol":tradingsymbol,
+                "symboltoken":symboltoken,
+                "exchange":exchange
+            }
+        else:
+            params = orderparams
+            
         for k in list(params.keys()):
             if params[k] is None:
                 del(params[k])
